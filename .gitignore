@@ -1,0 +1,7 @@
+# Purpose: Exclude installed packages, credentials and local experiment data.
+node_modules/
+.env
+.env.*
+local-data/
+*.log
+.DS_Store
