@@ -22,6 +22,30 @@ The synthetic stock failure loses three irrelevant response fields but retains `
 
 Install with `npm install github:gbesse/agent-capsule#v0.1.0`.
 
+## Verify cross-tool handoffs
+
+A tool can work in isolation while a workflow still loses or replaces the identifier returned by an earlier call. Handoff bindings check the captured trace itself: a selected JSON value in one tool result must exactly equal the selected value in a later tool's arguments.
+
+```js
+import { verifyHandoffs } from '@gbesse/agent-capsule';
+
+const report = verifyHandoffs(capsule, [{
+  producer: { eventIndex: 0, path: ['record', 'id'] },
+  consumer: { eventIndex: 1, path: ['recordId'] },
+}]);
+if (!report.passed) process.exitCode = 2;
+```
+
+The CLI accepts the same bindings as JSON:
+
+```sh
+agent-capsule handoffs capsule.json bindings.json
+```
+
+It exits `0` when every binding matches, `2` for a checked mismatch and `1` for invalid input. Paths are arrays of object keys or array indexes; `[]` selects the complete result or argument value. Producer events must precede consumer events. Comparison is exact JSON equality, including value types.
+
+This proves that the selected value appears unchanged in the recorded arguments. It does not prove why the agent selected it, that the workflow is semantically correct, or that a tool's side effects were safe. Run representative end-to-end workflows repeatedly when model behavior is part of the test subject.
+
 ## Workflow contract
 
 ```js
@@ -58,7 +82,7 @@ npm test
 npm run demo
 ```
 
-Tests cover failure reproduction, argument drift, caught mismatches, field minimization, immutable snapshots, CLI behavior and loopback Jev HTTP integration. No live model accuracy is claimed. See [SECURITY.md](SECURITY.md).
+Tests cover failure reproduction, argument drift, caught mismatches, exact cross-tool handoffs, field minimization, immutable snapshots, CLI behavior and loopback Jev HTTP integration. No live model accuracy is claimed. See [SECURITY.md](SECURITY.md).
 
 ## Where this can grow
 

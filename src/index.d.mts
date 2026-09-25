@@ -7,10 +7,14 @@ export type Tool = (args: JSONValue, options: { signal: AbortSignal }) => Promis
 export type Workflow = (context: { input: JSONValue; call: (name: string, args: JSONValue) => Promise<JSONValue>; signal: AbortSignal }) => Promise<JSONValue>;
 export interface Capsule { schemaVersion: 1; workflowId: string; input: JSONValue; events: { name: string; args: JSONValue; outcome: Outcome }[]; outcome: Outcome }
 export interface Candidate { eventIndex: number; key: string }
+export interface HandoffBinding { producer: { eventIndex: number; path: (string | number)[] }; consumer: { eventIndex: number; path: (string | number)[] } }
+export type HandoffReason = 'matched' | 'producer_did_not_return' | 'producer_path_missing' | 'consumer_path_missing' | 'value_mismatch';
+export interface HandoffCheck { bindingIndex: number; producerEventIndex: number; consumerEventIndex: number; matched: boolean; reason: HandoffReason }
 export type Ranker = (candidates: Candidate[], capsule: Capsule, options: { signal: AbortSignal }) => Promise<Candidate[]>;
 export class ReplayMismatch extends Error { constructor(message: string) }
 export function record(run: Workflow, input: JSONValue, tools: Record<string, Tool>, options?: Deadline & { workflowId?: string; maxEvents?: number }): Promise<Capsule>;
 export function validateCapsule(capsule: unknown): Capsule;
 export function replay(run: Workflow, capsule: Capsule, options?: Deadline & { workflowId?: string }): Promise<{ reproduced: boolean; outcome: Outcome; consumedEvents: number }>;
+export function verifyHandoffs(capsule: Capsule, bindings: HandoffBinding[]): { passed: boolean; checks: HandoffCheck[] };
 export function reductionCandidates(capsule: Capsule): Candidate[];
 export function minimize(run: Workflow, capsule: Capsule, options?: Deadline & { ranker?: Ranker; maxAttempts?: number }): Promise<{ capsule: Capsule; attempts: number; removed: Candidate[]; exhausted: boolean; guarantee: 'same_recorded_failure_with_strict_tool_trace' }>;
