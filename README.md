@@ -20,7 +20,11 @@ node bin/agent-capsule.mjs minimize examples/failing-workflow.mjs /tmp/capsule.j
 
 The synthetic stock failure loses three irrelevant response fields but retains `available: 0` and the same error. `record` really invokes the tool functions supplied by the workflow module. `replay` supplies recorded responses through `call`; it does not invoke a live tool registry.
 
-Install with `npm install github:gbesse/agent-capsule#v0.1.0`.
+Install with `npm install github:gbesse/agent-capsule#v0.1.1`.
+
+## See strict replay reject a changed call
+
+`npm run demo:divergence` records the synthetic stock failure, reproduces it offline, then changes the workflow's tool argument. Strict replay rejects the changed trace even though it uses the same recorded response. No live tool or model is invoked during replay.
 
 ## Workflow contract
 
