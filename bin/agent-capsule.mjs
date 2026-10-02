@@ -1,11 +1,18 @@
 #!/usr/bin/env node
 // Purpose: Record and replay explicitly trusted workflow modules; capsules never execute embedded source.
 import { fingerprint } from '@gbesse/decisionpacks';
-import { record, replay, minimize } from '../src/index.mjs';
+import { record, replay, minimize, verifyHandoffs } from '../src/index.mjs';
 import { readJSON, readText, writeJSON, loadPlugin, assertNewOutput } from '../src/cli-files.mjs';
 async function main() {
   const [command, workflow, input, output, flag, ...rest] = process.argv.slice(2);
-  if (!command || command === '--help') { console.log('agent-capsule record WORKFLOW.mjs INPUT.json OUTPUT.json\nagent-capsule replay WORKFLOW.mjs CAPSULE.json\nagent-capsule minimize WORKFLOW.mjs CAPSULE.json OUTPUT.json [--jev]\nWorkflow modules are trusted code. Capsules may contain sensitive inputs and outputs.'); return; }
+  if (!command || command === '--help') { console.log('agent-capsule record WORKFLOW.mjs INPUT.json OUTPUT.json\nagent-capsule replay WORKFLOW.mjs CAPSULE.json\nagent-capsule minimize WORKFLOW.mjs CAPSULE.json OUTPUT.json [--jev]\nagent-capsule handoffs CAPSULE.json BINDINGS.json\nWorkflow modules are trusted code. Capsules may contain sensitive inputs and outputs.'); return; }
+  if (command === 'handoffs') {
+    if (!workflow || !input || output || flag || rest.length) throw new Error('Invalid arguments');
+    const result = verifyHandoffs(await readJSON(workflow), await readJSON(input));
+    console.log(JSON.stringify(result, null, 2));
+    if (!result.passed) process.exitCode = 2;
+    return;
+  }
   if (!workflow || !input || rest.length || !['record','replay','minimize'].includes(command) || (command === 'replay' && output) || (command !== 'replay' && !output) || (flag && !(command === 'minimize' && flag === '--jev'))) throw new Error('Invalid arguments');
   if (output) await assertNewOutput(output);
   const workflowId = fingerprint(await readText(workflow)), module = await loadPlugin(workflow);

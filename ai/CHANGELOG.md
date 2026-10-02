@@ -2,6 +2,13 @@
 
 This file records implementation decisions and validation for agent-capsule.
 
+## 2026-09-25 — cross-tool handoff verification
+
+- Added `verifyHandoffs` to check that an exact JSON value returned by one recorded tool call reached a later call's arguments unchanged.
+- Added a fail-closed CLI command with distinct pass, mismatch and invalid-input exit statuses, plus public types, offline demo coverage and focused regressions.
+- Kept the claim narrow: the check proves equality inside a captured trace, not causal attribution, semantic correctness, model reliability or side-effect safety.
+- Validation: syntax checks, strict TypeScript checks, 15 tests and the offline demo. No live model or external tool was invoked.
+
 ## 2026-09-21 — v0.1.0 alpha
 
 - Implemented the documented offline core, CLI, typed public API and extension contracts.

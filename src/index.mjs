@@ -55,6 +55,38 @@ export async function replay(run, capsule, { workflowId = capsule.workflowId, ti
   if (position !== capsule.events.length) throw new ReplayMismatch('Recorded events were not consumed');
   return { reproduced: fingerprint(result) === fingerprint(capsule.outcome), outcome: result, consumedEvents: position };
 }
+function validatePath(path) {
+  ensure(Array.isArray(path) && path.every(part => typeof part === 'string' || Number.isSafeInteger(part) && part >= 0), 'Invalid handoff path');
+  return path;
+}
+function atPath(value, path) {
+  let current = value;
+  for (const part of path) {
+    if (!current || typeof current !== 'object' || !Object.hasOwn(current, part)) return { found: false };
+    current = current[part];
+  }
+  return { found: true, value: current };
+}
+export function verifyHandoffs(capsule, bindings) {
+  capsule = snapshot(validateCapsule(capsule));
+  bindings = snapshot(bindings);
+  ensure(Array.isArray(bindings) && bindings.length > 0, 'Provide at least one handoff binding');
+  const checks = bindings.map((binding, bindingIndex) => {
+    ensure(binding && typeof binding === 'object', 'Invalid handoff binding');
+    const producer = binding.producer, consumer = binding.consumer;
+    ensure(Number.isSafeInteger(producer?.eventIndex) && Number.isSafeInteger(consumer?.eventIndex) && producer.eventIndex >= 0 && consumer.eventIndex > producer.eventIndex && consumer.eventIndex < capsule.events.length, 'Invalid handoff event order');
+    const producerPath = validatePath(producer.path), consumerPath = validatePath(consumer.path);
+    const sourceEvent = capsule.events[producer.eventIndex], targetEvent = capsule.events[consumer.eventIndex];
+    if (sourceEvent.outcome.status !== 'returned') return { bindingIndex, producerEventIndex: producer.eventIndex, consumerEventIndex: consumer.eventIndex, matched: false, reason: 'producer_did_not_return' };
+    const source = atPath(sourceEvent.outcome.value, producerPath);
+    if (!source.found) return { bindingIndex, producerEventIndex: producer.eventIndex, consumerEventIndex: consumer.eventIndex, matched: false, reason: 'producer_path_missing' };
+    const target = atPath(targetEvent.args, consumerPath);
+    if (!target.found) return { bindingIndex, producerEventIndex: producer.eventIndex, consumerEventIndex: consumer.eventIndex, matched: false, reason: 'consumer_path_missing' };
+    const matched = fingerprint(source.value) === fingerprint(target.value);
+    return { bindingIndex, producerEventIndex: producer.eventIndex, consumerEventIndex: consumer.eventIndex, matched, reason: matched ? 'matched' : 'value_mismatch' };
+  });
+  return { passed: checks.every(check => check.matched), checks };
+}
 export function reductionCandidates(capsule) {
   validateCapsule(capsule); const result = [];
   capsule.events.forEach((e, index) => { if (e.outcome.status === 'returned' && e.outcome.value && typeof e.outcome.value === 'object' && !Array.isArray(e.outcome.value)) for (const key of Object.keys(e.outcome.value)) result.push({ eventIndex: index, key }); });
